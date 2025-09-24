@@ -3,7 +3,7 @@ import os
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, render_template   # ✅ import BOTH here
+from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
@@ -16,29 +16,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 game_state = {"players": [], "board": []}
 
 @app.route("/")
-def home():                                  # ✅ serve the page
-    return render_template("index.html")
-
-@socketio.on("connect")
-# server.py
-import os
-import eventlet
-eventlet.monkey_patch()
-
-from flask import Flask, render_template   # ✅ import BOTH here
-from flask_socketio import SocketIO, emit
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!'
-
-# Use eventlet on Heroku; allow CORS for testing
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
-
-# Minimal shared state (demo)
-game_state = {"players": [], "board": []}
-
-@app.route("/")
-def home():                                  # ✅ serve the page
+def home():
     return render_template("index.html")
 
 @socketio.on("connect")
@@ -69,3 +47,4 @@ def on_disconnect():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port)
+
