@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Classic Dominos (demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 12px; }
+    .row { margin: 12px 0; }
+    input, button { font-size: 16px; padding: 8px 10px; }
+    #log { background:#f6f6f6; padding:12px; min-height:120px; white-space:pre-wrap; }
+    code { background:#eee; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>Classic Dominos (online demo)</h1>
+
+  <div class="row">
+    <label>Player name: <input id="name" placeholder="Alice" /></label>
+    <button id="joinBtn">Join</button>
+  </div>
+
+  <div class="row">
+    <label>Play a tile (e.g. <code>6,3</code>): <input id="tile" placeholder="6,3" /></label>
+    <button id="playBtn">Play</button>
+  </div>
+
+  <div class="row"><strong>Players:</strong> <span id="players">[]</span></div>
+  <div class="row"><strong>Board:</strong> <span id="board">[]</span></div>
+
+  <h3>Log</h3>
+  <div id="log"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const log = (m) => { document.getElementById('log').textContent += m + "\n"; };
+    const socket = io();
+
+    const nameEl = document.getElementById('name');
+    const tileEl = document.getElementById('tile');
+    const playersEl = document.getElementById('players');
+    const boardEl = document.getElementById('board');
+
+    document.getElementById('joinBtn').onclick = () => {
+      const username = (nameEl.value || "Player").trim();
+      socket.emit('join', { username });
+      log("JOIN sent: " + username);
+    };
+
+    document.getElementById('playBtn').onclick = () => {
+      const raw = (tileEl.value || "").trim();
+      if (!raw) return;
+      const parts = raw.split(",").map(x => parseInt(x.trim(), 10));
+      if (parts.length !== 2 || parts.some(n => Number.isNaN(n))) {
+        return alert("Enter a tile like 6,3");
+      }
+      const username = (nameEl.value || "Player").trim();
+      socket.emit('play_tile', { username, tile: parts });
+      log("PLAY sent: " + JSON.stringify(parts));
+      tileEl.value = "";
+    };
+
+    socket.on('connect', () => log("Connected"));
+    socket.on('player_joined', (data) => {
+      playersEl.textContent = JSON.stringify(data.players);
+      log("Players updated: " + JSON.stringify(data.players));
+    });
+    socket.on('tile_played', (data) => {
+      boardEl.textContent = JSON.stringify(data.board);
+      log("Board updated: " + JSON.stringify(data));
+    });
+  </script>
+</body>
+</html>
+
