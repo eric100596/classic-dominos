@@ -1,3 +1,5 @@
+# main.py (pygbag-friendly, fixed)
+import asyncio
 import os
 import pygame
 from game import Game
@@ -20,8 +22,17 @@ def initialize_maximized_game():
     pygame.display.set_caption("Camino-6 - Maximized Domino Game")
     return screen
 
-# ---------------- Menu helpers ----------------
-def show_player_select(screen):
+# ---------------- Helpers (async: yield each frame) ----------------
+async def show_starting(screen, text):
+    font = pygame.font.SysFont(None, 40)
+    for _ in range(30):  # ~0.5s at 60fps
+        screen.fill((10, 30, 10))
+        t = font.render(text, True, (255, 255, 255))
+        screen.blit(t, t.get_rect(center=(screen.get_width()//2, screen.get_height()//2)))
+        pygame.display.flip()
+        await asyncio.sleep(0)
+
+async def show_player_select(screen):
     """Pick number of players (2–4). Returns int or None if window closed."""
     font = pygame.font.SysFont(None, 48)
     big  = pygame.font.SysFont(None, 60)
@@ -55,8 +66,9 @@ def show_player_select(screen):
             screen.blit(surf, rect)
 
         pygame.display.flip()
+        await asyncio.sleep(0)  # yield
 
-def ask_human_players(screen, total_players):
+async def ask_human_players(screen, total_players):
     """Pick how many humans (0..total_players). Returns int or None if closed."""
     font = pygame.font.SysFont(None, 48)
     small = pygame.font.SysFont(None, 32)
@@ -92,10 +104,10 @@ def ask_human_players(screen, total_players):
             screen.blit(num, num.get_rect(center=r.center))
 
         pygame.display.flip()
+        await asyncio.sleep(0)  # yield
 
-def ask_game_mode(screen):
-    """Choose between Classic scoring and Race (first-out). Returns 'scoring' or 'race'."""
-    font = pygame.font.SysFont(None, 52)
+async def ask_game_mode(screen):
+    font  = pygame.font.SysFont(None, 52)
     small = pygame.font.SysFont(None, 28)
     sw, sh = screen.get_width(), screen.get_height()
 
@@ -105,65 +117,89 @@ def ask_game_mode(screen):
     btn_race.center    = (sw // 2, sh // 2 + 60)
 
     while True:
+        mouse = pygame.mouse.get_pos()
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return None
-            if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
+            if ev.type == pygame.KEYDOWN and ev.key in (pygame.K_ESCAPE, pygame.K_q):
                 return None
-            if ev.type == pygame.MOUSEBUTTONDOWN:
+            if ev.type == pygame.KEYDOWN and ev.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_1):
+                print("[UI] Game mode selected: scoring (keyboard)")
+                return "scoring"
+            if ev.type == pygame.KEYDOWN and ev.key in (pygame.K_2,):
+                print("[UI] Game mode selected: race (keyboard)")
+                return "race"
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                print(f"[UI] click @ {ev.pos}")
                 if btn_scoring.collidepoint(ev.pos):
+                    print("[UI] Game mode selected: scoring (mouse)")
                     return "scoring"
                 if btn_race.collidepoint(ev.pos):
+                    print("[UI] Game mode selected: race (mouse)")
                     return "race"
 
         screen.fill((8, 60, 40))
         title = font.render("Choose Game Mode", True, (255, 255, 255))
         screen.blit(title, title.get_rect(center=(sw // 2, sh // 2 - 130)))
 
-        pygame.draw.rect(screen, (30, 120, 60), btn_scoring, border_radius=14)
-        pygame.draw.rect(screen, (60, 90, 150), btn_race,    border_radius=14)
+        # hover effect
+        def draw_btn(rect, base_color, label):
+            hovered = rect.collidepoint(mouse)
+            col = tuple(min(255, c + (25 if hovered else 0)) for c in base_color)
+            pygame.draw.rect(screen, col, rect, border_radius=14)
+            txt = small.render(label, True, (255, 255, 255))
+            screen.blit(txt, txt.get_rect(center=rect.center))
 
-        t1 = small.render("Classic Scoring (to 150, score by 5s)", True, (255, 255, 255))
-        t2 = small.render("Race Mode (no points) — first out wins", True, (255, 255, 255))
-        screen.blit(t1, t1.get_rect(center=btn_scoring.center))
-        screen.blit(t2, t2.get_rect(center=btn_race.center))
+        draw_btn(btn_scoring, (30,120,60), "Classic Scoring (to 150, score by 5s)")
+        draw_btn(btn_race,    (60, 90,150), "Race Mode (no points) — first out wins")
 
         pygame.display.flip()
+        await asyncio.sleep(0)  # yield
 
-# ---------------- Main loop ----------------
-def main():
+# ---------------- Main loop (async) ----------------
+async def main_async():
     screen = initialize_maximized_game()
 
     while True:
-        num_players = show_player_select(screen)
+        num_players = await show_player_select(screen)
         if num_players is None:
             break
 
-        num_humans = ask_human_players(screen, num_players)
+        num_humans = await ask_human_players(screen, num_players)
         if num_humans is None:
             break
 
-        game_mode = ask_game_mode(screen)
+        game_mode = await ask_game_mode(screen)
         if game_mode is None:
             break
 
-        print(f"[MAIN] Starting game with {num_players} players ({num_humans} human, {num_players - num_humans} AI)")
+        await show_starting(screen, f"Starting {game_mode} game...")
+
+        print(f"[MAIN] Starting game with {num_players} players "
+              f"({num_humans} human, {num_players - num_humans} AI)")
         print(f"[MAIN] Window size: {screen.get_width()}x{screen.get_height()}")
 
-        # NOTE: game.py should accept game_mode (defaulting to 'scoring' if omitted)
+        # Prefer async run if present
         game = Game(screen, num_players, num_humans, game_mode=game_mode)
-        result = game.run()
-
-        # Game.run() should RETURN a status (do not quit pygame inside run())
-        if result == "RETURN_TO_MENU":
-            continue  # loop back to the menu
-        elif result == "EXIT":
-            break      # user hit Exit button
+        if hasattr(game, "run_async"):
+            result = await game.run_async()
         else:
-            # default: return to menu after any completed game or window close
+            result = game.run()
+
+        if result == "RETURN_TO_MENU":
+            continue
+        elif result == "EXIT":
+            break
+        else:
             continue
 
     pygame.quit()
+
+def main():
+    try:
+        asyncio.run(main_async())
+    except KeyboardInterrupt:
+        pygame.quit()
 
 if __name__ == "__main__":
     main()

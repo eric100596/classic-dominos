@@ -1,0 +1,151 @@
+ *pygbag 0.9.2*
+
+Serving python files from [/Users/ericbaker/Desktop/Classic Dominos/build/web]
+
+with no security/performance in mind, i'm just a test tool : don't rely on me
+
+
+SUMMARY
+________________________
+
+# the app folder
+app_folder=/Users/ericbaker/Desktop/Classic Dominos
+
+# artefacts directory
+build_dir=/Users/ericbaker/Desktop/Classic Dominos/build/web
+
+# cache directory
+cache=/Users/ericbaker/Desktop/Classic Dominos/build/web-cache
+
+# the window title and icon name
+app_name=classic.dominos
+
+# package name, better make it unique
+package=web.pygame.Classic Dominos-1759429167
+
+# icons:  96x96 for desktop, 16x16 for web
+icon=favicon.png
+
+# js/wasm provider
+cdn=https://pygame-web.github.io/archives/0.9/
+
+now packing application ....
+
+
+Now in /
+     /tile.py
+     /server.py
+     /board.py
+     /.DS_Store
+     /netlify.toml
+     /requirements.txt
+     /game.py
+     /boneyard.py
+     /client.py
+     /player.py
+     /build_log.txt
+     /.python-version
+     /Procfile
+     /main.py
+Now in /templates
+     /templates/index.html
+Now in /assets
+     /assets/.DS_Store
+Now in /assets/Cards
+     /assets/Cards/card_3-5.jpg
+     /assets/Cards/card_1-6.jpg
+     /assets/Cards/card_3-4.jpg
+     /assets/Cards/card_3-6.jpg
+     /assets/Cards/card_1-4.jpg
+     /assets/Cards/card_1-5.jpg
+     /assets/Cards/card_3-3.jpg
+     /assets/Cards/card_1-1.jpg
+     /assets/Cards/.DS_Store
+     /assets/Cards/card_5-5.jpg
+     /assets/Cards/card_1-2.jpg
+     /assets/Cards/card_5-6.jpg
+     /assets/Cards/card_1-3.jpg
+     /assets/Cards/card_0-4.jpg
+     /assets/Cards/card_2-6.jpg
+     /assets/Cards/card_0-5.jpg
+     /assets/Cards/card_2-5.jpg
+     /assets/Cards/card_2-4.jpg
+     /assets/Cards/card_0-6.jpg
+     /assets/Cards/card_4-6.jpg
+     /assets/Cards/card_0-2.jpg
+     /assets/Cards/card_0-3.jpg
+     /assets/Cards/card_4-5.jpg
+     /assets/Cards/card_0-1.jpg
+     /assets/Cards/card_2-3.jpg
+     /assets/Cards/card_2-2.jpg
+     /assets/Cards/card_0-0.jpg
+     /assets/Cards/card_6-6.jpg
+     /assets/Cards/card_4-4.jpg
+     /assets/Cards/card_back.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : tile.py
+	/Users/ericbaker/Desktop/Classic Dominos : server.py
+	/Users/ericbaker/Desktop/Classic Dominos : board.py
+	/Users/ericbaker/Desktop/Classic Dominos : .DS_Store
+	/Users/ericbaker/Desktop/Classic Dominos : netlify.toml
+	/Users/ericbaker/Desktop/Classic Dominos : requirements.txt
+	/Users/ericbaker/Desktop/Classic Dominos : game.py
+	/Users/ericbaker/Desktop/Classic Dominos : boneyard.py
+	/Users/ericbaker/Desktop/Classic Dominos : client.py
+	/Users/ericbaker/Desktop/Classic Dominos : player.py
+	/Users/ericbaker/Desktop/Classic Dominos : build_log.txt
+	/Users/ericbaker/Desktop/Classic Dominos : .python-version
+	/Users/ericbaker/Desktop/Classic Dominos : Procfile
+	/Users/ericbaker/Desktop/Classic Dominos : main.py
+	/Users/ericbaker/Desktop/Classic Dominos : templates/index.html
+	/Users/ericbaker/Desktop/Classic Dominos : assets/.DS_Store
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_3-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_3-4.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_3-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-4.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_3-3.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-1.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/.DS_Store
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_5-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-2.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_5-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_1-3.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-4.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_2-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_2-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_2-4.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_4-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-2.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-3.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_4-5.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-1.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_2-3.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_2-2.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_0-0.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_6-6.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_4-4.jpg
+	/Users/ericbaker/Desktop/Classic Dominos : assets/Cards/card_back.jpg
+packing 46 files complete
+
+    caching template https://pygame-web.github.io/archives/0.9/default.tmpl
+    cached locally at /Users/ericbaker/Desktop/Classic Dominos/build/web-cache/489f66f53e526d7110d2d34527229eca.tmpl
+    result files will be in /Users/ericbaker/Desktop/Classic Dominos/build/web
+
+urllib.request.urlretrieve("https://pygame-web.github.io/archives/0.9/default.tmpl", "/Users/ericbaker/Desktop/Classic Dominos/build/web-cache/489f66f53e526d7110d2d34527229eca.tmpl")
+
+        copying static files to webroot /Users/ericbaker/Desktop/Classic Dominos/build/web
+
+urllib.request.urlretrieve("https://pygame-web.github.io/archives/0.9/favicon.png", "/Users/ericbaker/Desktop/Classic Dominos/build/web-cache/38e02d124325c756243ee99a92e528ed.png")
+
+        caching icon https://pygame-web.github.io/archives/0.9/favicon.png
+        cached locally at /Users/ericbaker/Desktop/Classic Dominos/build/web-cache/38e02d124325c756243ee99a92e528ed.png
+        
+
+    build only requested, not running testserver, files ready here :
+
+build_dir = /Users/ericbaker/Desktop/Classic Dominos/build/web
+
+

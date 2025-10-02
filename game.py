@@ -6,10 +6,63 @@ from board import Board
 from tile import Tile
 from player import Player
 from boneyard import Boneyard
+import asyncio
+# Base path helper (works in browser build, too)
+BASE = os.path.dirname(__file__)
+def P(*parts): return os.path.join(BASE, *parts)
+
+# Simple caches
+_IMG_CACHE = {}         # raw images by filename
+_FACE_CACHE = {}        # scaled faces by (l, r, w, h)
 
 # Define a consistent tile size for drawing
 TILE_WIDTH = 40
 TILE_HEIGHT = 80
+
+def load_image_rel(path):
+    """Load image relative to the project, cache by full path."""
+    full = P(path)
+    if full in _IMG_CACHE:
+        return _IMG_CACHE[full]
+    img = pygame.image.load(full).convert_alpha()
+    _IMG_CACHE[full] = img
+    return img
+
+def load_card_face(left, right):
+    """
+    Load the domino face image. Try common variants so small naming differences
+    don't break the web build. We prefer 'card_<l>-<r>.jpg' (lowercase).
+    """
+    candidates = [
+        f"assets/Cards/card_{left}-{right}.jpg",
+        f"assets/Cards/card_{left}-{right}.JPG",
+        f"assets/Cards/card_{left}_{right}.jpg",   # underscore fallback
+        f"assets/Cards/card_{left}_{right}.JPG",
+        f"assets/Cards/card_{left}-{right}.png",   # png fallback
+        f"assets/Cards/card_{left}_{right}.png",
+    ]
+    last_err = None
+    for rel in candidates:
+        try:
+            return load_image_rel(rel)
+        except Exception as e:
+            last_err = e
+    # Visible placeholder so game keeps running if missing
+    print(f"[ASSET] Could not load face for {left}-{right}: {last_err}")
+    ph = pygame.Surface((100, 200), pygame.SRCALPHA)
+    ph.fill((0, 0, 0))  # black placeholder
+    pygame.draw.rect(ph, (200, 200, 200), ph.get_rect(), 6)
+    return ph
+
+def get_face_scaled(left, right, w, h):
+    """Return a scaled face Surface for (left,right) at size (w,h)."""
+    key = (left, right, int(w), int(h))
+    surf = _FACE_CACHE.get(key)
+    if surf is None:
+        base = load_card_face(left, right)
+        surf = pygame.transform.smoothscale(base, (int(w), int(h)))
+        _FACE_CACHE[key] = surf
+    return surf
 
 class Game:
     def __init__(self, screen, num_players, num_humans, game_mode="scoring"):
@@ -74,21 +127,117 @@ class Game:
         self.draw_button_rect = pygame.Rect(self.screen.get_width() - 120, self.screen.get_height() - 100, 100, 40)
         self.pass_button_rect = pygame.Rect(self.screen.get_width() - 120, self.screen.get_height() - 50, 100, 40)
 
-    def run(self):
-        self._deal_initial_hands()
-        self.current_player_index = self._determine_starting_player()
-        if self.current_player_index is None:
-            self.current_player_index = 0
-            print("No suitable starting tile found, defaulting to Player 1.")
+    def _layout_ui(self):
+        sw, sh = self.screen.get_width(), self.screen.get_height()
+        button_width = 150
+        button_height = 40
+        padding = 10
+
+        self.exit_button_rect   = pygame.Rect(padding, sh - button_height - padding, button_width, button_height)
+        self.repeat_button_rect = pygame.Rect(padding, sh - (button_height * 2) - (padding * 2), button_width, button_height)
+        self.draw_button_rect   = pygame.Rect(sw - 120, sh - 100, 100, 40)
+        self.pass_button_rect   = pygame.Rect(sw - 120, sh - 50,  100, 40)
         
+    def run(self):
+            self._deal_initial_hands()
+            self.current_player_index = self._determine_starting_player()
+            if self.current_player_index is None:
+                self.current_player_index = 0
+                print("No suitable starting tile found, defaulting to Player 1.")
+            
+            # Start AI timer if first player is AI
+            current_player = self.players[self.current_player_index]
+            if not current_player.is_human:
+                self.ai_turn_start_time = time.time()
+                self.waiting_for_ai_delay = True
+            
+            running = True
+            while running:
+                self._layout_ui()
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                        self.game_over = True
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        self._handle_mouse_click(event.pos)
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_f:
+                            if self.selected_tile:
+                                self.selected_tile.flip()
+                                
+                self.screen.fill((30, 80, 50))
+
+                # Draw everything
+                self.board.draw(self.screen, show_board_total=self.scoring_enabled)
+
+                play_area_rect = self.board.play_area_rect
+
+                for i, player in enumerate(self.players):
+                    # Show all hands if the flag is set (during round end display)
+                    show_this_hand = player.is_human or (hasattr(self, 'show_all_hands') and self.show_all_hands)
+
+                    if show_this_hand:
+                        player.draw_hand(self.screen, play_area_rect)  # face-up; no score line here
+                    else:
+                        # ↓↓↓ THIS IS THE IMPORTANT CHANGE ↓↓↓
+                        self.draw_back_of_hand(self.screen, play_area_rect, i, show_score=self.scoring_enabled)
+
+                self._draw_info_text()
+                self._draw_buttons()
+
+                if self.waiting_for_placement_choice:
+                    self._draw_placement_buttons()
+
+                message_is_blocking = self._draw_ai_message()
+                pygame.display.flip()
+
+
+                self._check_game_end_conditions()
+
+                if self.game_over:
+                    running = False
+                    break
+
+                # Handle AI turns with timing delay AND message blocking check
+                if not self.waiting_for_placement_choice and not message_is_blocking:
+                    current_player = self.players[self.current_player_index]
+                    if not current_player.is_human:
+                        if self.waiting_for_ai_delay:
+                            # Check if enough time has passed
+                            if time.time() - self.ai_turn_start_time >= self.ai_delay:
+                                self.waiting_for_ai_delay = False
+                                self._handle_player_turn()
+                        else:
+                            # This shouldn't happen, but handle it just in case
+                            self._handle_player_turn()
+
+            print("Game Over. Final Scores:")
+            for player in self.players:
+                print(f"Player {player.index + 1}: {player.score} points")
+
+            # DO NOT quit here—let main.py decide what to do next.
+            if getattr(self, "return_to_menu_requested", False):
+                return "RETURN_TO_MENU"
+            if getattr(self, "exiting", False):
+                return "EXIT"
+            return "GAME_OVER"
+        
+    async def run_async(self):
+        """Browser-friendly loop: same logic as run(), but yields each frame."""
+        self._deal_initial_hands()
+        self.current_player_index = self._determine_starting_player() or 0
+
         # Start AI timer if first player is AI
         current_player = self.players[self.current_player_index]
         if not current_player.is_human:
             self.ai_turn_start_time = time.time()
             self.waiting_for_ai_delay = True
-        
+
         running = True
+        clock = pygame.time.Clock()
+
         while running:
+            self._layout_ui()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -96,61 +245,59 @@ class Game:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     self._handle_mouse_click(event.pos)
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_f:
-                        if self.selected_tile:
-                            self.selected_tile.flip()
-                            
+                    if event.key == pygame.K_f and self.selected_tile:
+                        self.selected_tile.flip()
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    print(f"[CLICK] {event.pos}")
+                    self._handle_mouse_click(event.pos)
+
             self.screen.fill((30, 80, 50))
 
             # Draw everything
             self.board.draw(self.screen, show_board_total=self.scoring_enabled)
-
             play_area_rect = self.board.play_area_rect
 
             for i, player in enumerate(self.players):
-                # Show all hands if the flag is set (during round end display)
+                # show humans face-up; AIs face-down unless "reveal all"
                 show_this_hand = player.is_human or (hasattr(self, 'show_all_hands') and self.show_all_hands)
-
                 if show_this_hand:
-                    player.draw_hand(self.screen, play_area_rect)  # face-up; no score line here
+                    player.draw_hand(self.screen, play_area_rect)
                 else:
-                    # ↓↓↓ THIS IS THE IMPORTANT CHANGE ↓↓↓
                     self.draw_back_of_hand(self.screen, play_area_rect, i, show_score=self.scoring_enabled)
 
             self._draw_info_text()
             self._draw_buttons()
-
             if self.waiting_for_placement_choice:
                 self._draw_placement_buttons()
 
             message_is_blocking = self._draw_ai_message()
             pygame.display.flip()
 
-
+            # End-of-hand checks
             self._check_game_end_conditions()
-
             if self.game_over:
                 running = False
                 break
 
-            # Handle AI turns with timing delay AND message blocking check
+            # AI turns (with delay), unless a toast/overlay is blocking
             if not self.waiting_for_placement_choice and not message_is_blocking:
                 current_player = self.players[self.current_player_index]
                 if not current_player.is_human:
                     if self.waiting_for_ai_delay:
-                        # Check if enough time has passed
                         if time.time() - self.ai_turn_start_time >= self.ai_delay:
                             self.waiting_for_ai_delay = False
                             self._handle_player_turn()
                     else:
-                        # This shouldn't happen, but handle it just in case
                         self._handle_player_turn()
+
+            clock.tick(60)
+            # CRUCIAL in browsers: yield once per frame
+            await asyncio.sleep(0)
 
         print("Game Over. Final Scores:")
         for player in self.players:
             print(f"Player {player.index + 1}: {player.score} points")
 
-        # DO NOT quit here—let main.py decide what to do next.
         if getattr(self, "return_to_menu_requested", False):
             return "RETURN_TO_MENU"
         if getattr(self, "exiting", False):
@@ -596,6 +743,11 @@ class Game:
         if self.phase == "game_over":
             self.return_to_menu_requested = True
             self.game_over = True
+            return
+            
+        if self.repeat_button_rect.collidepoint(mouse_pos):
+            print("[UI] New Game clicked")
+            self.reset_game()
             return
 
         # --- Cancel placement choice if clicking outside buttons ------------------
@@ -1111,8 +1263,18 @@ class Game:
             self._tile_back_img_cache = {}
         key = (tw, th)
         if key not in self._tile_back_img_cache:
-            path = os.path.join("assets", "Cards", "card_back.JPG")
-            base = pygame.image.load(path).convert_alpha()
+            base = None
+            for name in ("card_back.jpg", "card_back.JPG"):  # try both, web is case-sensitive
+                try:
+                    p = os.path.join("assets", "Cards", name)
+                    base = pygame.image.load(p).convert_alpha()
+                    break
+                except Exception as e:
+                    print(f"[ASSET] Could not load {name}: {e}")
+            if base is None:
+                # visible placeholder so the game keeps running
+                base = pygame.Surface((tw, th), pygame.SRCALPHA)
+                base.fill((180, 180, 180, 255))
             self._tile_back_img_cache[key] = pygame.transform.smoothscale(base, (tw, th))
         back = self._tile_back_img_cache[key]
         back_left  = pygame.transform.rotate(back, 90)
